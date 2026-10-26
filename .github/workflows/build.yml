@@ -1,4 +1,4 @@
-name: Build CopyVaultSimulateFix (Classic)
+name: Build CopyVaultSimulateFix (Roothide)
 
 on:
   push:
@@ -15,25 +15,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-
       - name: Install Dependencies
         run: |
           brew install ldid
 
-      - name: Clone Standard Theos and SDKs
+      - name: Clone Roothide Theos and SDKs
         run: |
-          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          git clone --recursive https://github.com/roothide/theos.git $HOME/theos
           rm -rf $HOME/theos/sdks
           git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
-      - name: Build Package
+      - name: Build Roothide Package
         run: |
-          make clean package FINALPACKAGE=1
+          make clean package THEOS_PACKAGE_SCHEME=roothide SYSROOT=$HOME/theos/sdks/iPhoneOS16.5.sdk FINALPACKAGE=1
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CopyVaultSimulateFix-Classic
+          name: CopyVaultSimulateFix-Roothide
           path: packages/*.deb
