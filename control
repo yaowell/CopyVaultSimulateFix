@@ -1,0 +1,9 @@
+Package: com.squidforce.copyvaultsimulatefix
+Name: CopyVault Simulate Fix
+Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 14.0)
+Version: 1.0
+Architecture: iphoneos-arm64
+Description: 为 CopyVault 提供跨应用模拟粘贴增强，解决未注入 App 无法输入的痛点。
+Maintainer: yaowell
+Author: yaowell
+Section: Addons
