@@ -8,7 +8,10 @@ TWEAK_NAME = CopyVaultSimulateFix
 CopyVaultSimulateFix_FILES = CVSimulateFix.m
 CopyVaultSimulateFix_CFLAGS = -fobjc-arc
 
-# 解决新版 Xcode 传参导致的 clang 报错和段错误
+# 显式链接 substrate 库，解决 _MSHookMessageEx 找不到符号的问题
+CopyVaultSimulateFix_LIBRARIES = substrate
+
+# 过滤新版 Xcode 工具链参数警告
 ADDITIONAL_CFLAGS = -Wno-error=unused-command-line-argument
 
 include $(THEOS_MAKE_PATH)/tweak.mk
