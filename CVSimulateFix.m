@@ -7,6 +7,28 @@
 
 extern void MSHookMessageEx(Class cls, SEL sel, IMP replacement, IMP *result);
 
+// 写入文件日志的辅助函数，确保任何情况下都能查看到执行轨迹
+static void CVLog(NSString *format, ...) {
+    va_list args;
+    va_start(args, format);
+    NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
+    va_end(args);
+    
+    NSString *logLine = [NSString stringWithFormat:@"[%@]: %@\n", [NSDate date], message];
+    NSString *logPath = @"/var/mobile/Documents/CopyVaultDebug.log";
+    
+    NSData *data = [logLine dataUsingEncoding:NSUTF8StringEncoding];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:logPath]) {
+        NSFileHandle *fileHandle = [NSFileHandle fileHandleForWritingAtPath:logPath];
+        [fileHandle seekToEndOfFile];
+        [fileHandle writeData:data];
+        [fileHandle closeFile];
+    } else {
+        [data writeToFile:logPath atomically:YES];
+    }
+    NSLog(@"[CopyVaultSimulateFix] %@", message);
+}
+
 #pragma mark - 硬件键盘事件（模拟 ⌘V）
 
 typedef struct __IOHIDEvent *IOHIDEventRef;
@@ -88,7 +110,7 @@ static void ZKHidePanel(void) {
 static void (*ZKOrigUpdatePasteboard)(id, SEL, id, id, BOOL);
 
 static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL shouldAutoPaste) {
-    NSLog(@"[CopyVaultSimulateFix] 🎯 触发条目点击，开始执行模拟粘贴拦截流程...");
+    CVLog(@"🎯 触发条目点击，开始执行模拟粘贴拦截流程...");
 
     UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
     NSInteger before = (NSInteger)pasteboard.changeCount;
@@ -101,7 +123,7 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
     verify = ^{
         void (^strongVerify)(void) = weakVerify;
         if ((NSInteger)pasteboard.changeCount != before) {
-            NSLog(@"[CopyVaultSimulateFix] ✅ 剪贴板已更新，正在隐藏面板并派发硬件 ⌘V...");
+            CVLog(@"✅ 剪贴板已更新，正在隐藏面板并派发硬件 ⌘V...");
             ZKHidePanel();
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), ^{
@@ -114,7 +136,7 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
                            dispatch_get_main_queue(), strongVerify);
             return;
         }
-        NSLog(@"[CopyVaultSimulateFix] ⚠️ 剪贴板写入超时，回退到原版经典粘贴方式");
+        CVLog(@"⚠️ 剪贴板写入超时，回退到原版经典粘贴方式");
         ZKOrigUpdatePasteboard(self, _cmd, item, from, YES);
     };
     weakVerify = verify;
@@ -123,35 +145,33 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
                    dispatch_get_main_queue(), verify);
 }
 
-#pragma mark - 插件入口（改为全局注入 + 内部 Bundle ID 动态认证）
+#pragma mark - 插件入口
 
 __attribute__((constructor)) static void CVSimulateFixInit(void) {
     NSBundle *mainBundle = [NSBundle mainBundle];
     NSString *bundleId = [mainBundle bundleIdentifier];
     
-    // 打印所有加载该动态库的进程，方便我们看它到底进没进去
-    NSLog(@"[CopyVaultSimulateFix] 🚀 动态库被加载进进程: %@", bundleId);
+    CVLog(@"🚀 动态库被加载进进程: %@", bundleId);
 
-    // 如果不是 CopyVault，直接返回不处理
     if (!bundleId || ![bundleId isEqualToString:@"cn.octoforce.copyvault"]) {
         return;
     }
 
-    NSLog(@"[CopyVaultSimulateFix] 🎉 成功识别到目标 App: cn.octoforce.copyvault，开始挂钩...");
+    CVLog(@"🎉 成功识别到目标 App: cn.octoforce.copyvault，开始挂钩...");
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         Class cls = objc_getClass("CopyVaultManager");
         if (!cls) {
-            NSLog(@"[CopyVaultSimulateFix] ❌ 未能找到 CopyVaultManager 类");
+            CVLog(@"❌ 未能找到 CopyVaultManager 类");
             return;
         }
         SEL sel = NSSelectorFromString(@"updatePasteboardWithItem:from:shouldAutoPaste:");
         if (class_getInstanceMethod(cls, sel)) {
             MSHookMessageEx(cls, sel, (IMP)ZKHookUpdatePasteboard, (IMP *)&ZKOrigUpdatePasteboard);
-            NSLog(@"[CopyVaultSimulateFix] 🎉 CopyVaultManager 粘贴方法 Hook 成功！");
+            CVLog(@"🎉 CopyVaultManager 粘贴方法 Hook 成功！");
         } else {
-            NSLog(@"[CopyVaultSimulateFix] ❌ 未能找到对应的粘贴选择器");
+            CVLog(@"❌ 未能找到对应的粘贴选择器");
         }
     });
 }
