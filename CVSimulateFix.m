@@ -95,8 +95,13 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
     ZKOrigUpdatePasteboard(self, _cmd, item, from, NO);
 
     __block NSInteger checks = 0;
-    __block void (^verify)(void) = nil; // 修复块内递归捕获的编译报错
+    __block void (^verify)(void) = nil;
+    
+    // 使用 weak 弱引用修饰，彻底避开 ARC 循环引用警告
+    __weak void (^weakVerify)(void) = nil;
+    
     verify = ^{
+        void (^strongVerify)(void) = weakVerify;
         if ((NSInteger)pasteboard.changeCount != before) {
             NSLog(@"[CopyVaultSimulateFix] ✅ 剪贴板已更新，正在隐藏面板并派发硬件 ⌘V...");
             ZKHidePanel();
@@ -108,12 +113,14 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
         }
         if (++checks < 6) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.08 * NSEC_PER_SEC)),
-                           dispatch_get_main_queue(), verify);
+                           dispatch_get_main_queue(), strongVerify);
             return;
         }
         NSLog(@"[CopyVaultSimulateFix] ⚠️ 剪贴板写入超时，回退到原版经典粘贴方式");
         ZKOrigUpdatePasteboard(self, _cmd, item, from, YES);
     };
+    weakVerify = verify;
+
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.08 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), verify);
 }
