@@ -1,3 +1,6 @@
+# 强制指定目标为 roothide 隐根架构
+THEOS_PACKAGE_SCHEME = roothide
+
 TARGET := iphone:clang:latest:14.0
 ARCHS = arm64 arm64e
 
@@ -8,7 +11,7 @@ TWEAK_NAME = CopyVaultSimulateFix
 CopyVaultSimulateFix_FILES = CVSimulateFix.m
 CopyVaultSimulateFix_CFLAGS = -fobjc-arc
 
-# 显式链接 substrate 库，解决 _MSHookMessageEx 找不到符号的问题
+# 显式链接 substrate 库
 CopyVaultSimulateFix_LIBRARIES = substrate
 
 # 过滤新版 Xcode 工具链参数警告
