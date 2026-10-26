@@ -96,8 +96,6 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
 
     __block NSInteger checks = 0;
     __block void (^verify)(void) = nil;
-    
-    // 使用 weak 弱引用修饰，彻底避开 ARC 循环引用警告
     __weak void (^weakVerify)(void) = nil;
     
     verify = ^{
@@ -125,10 +123,21 @@ static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL sho
                    dispatch_get_main_queue(), verify);
 }
 
-#pragma mark - 插件入口
+#pragma mark - 插件入口（改为全局注入 + 内部 Bundle ID 动态认证）
 
 __attribute__((constructor)) static void CVSimulateFixInit(void) {
-    NSLog(@"[CopyVaultSimulateFix] 🚀 补丁动态库已成功加载进进程: %@", [NSBundle mainBundle].bundleIdentifier);
+    NSBundle *mainBundle = [NSBundle mainBundle];
+    NSString *bundleId = [mainBundle bundleIdentifier];
+    
+    // 打印所有加载该动态库的进程，方便我们看它到底进没进去
+    NSLog(@"[CopyVaultSimulateFix] 🚀 动态库被加载进进程: %@", bundleId);
+
+    // 如果不是 CopyVault，直接返回不处理
+    if (!bundleId || ![bundleId isEqualToString:@"cn.octoforce.copyvault"]) {
+        return;
+    }
+
+    NSLog(@"[CopyVaultSimulateFix] 🎉 成功识别到目标 App: cn.octoforce.copyvault，开始挂钩...");
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
