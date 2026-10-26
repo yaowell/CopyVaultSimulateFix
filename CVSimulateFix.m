@@ -90,13 +90,13 @@ static void (*ZKOrigUpdatePasteboard)(id, SEL, id, id, BOOL);
 static void ZKHookUpdatePasteboard(id self, SEL _cmd, id item, id from, BOOL shouldAutoPaste) {
     NSLog(@"[CopyVaultSimulateFix] 🎯 触发条目点击，开始执行模拟粘贴拦截流程...");
 
-    // 核心直接走模拟粘贴：先写入剪贴板（shouldAutoPaste传NO避免原版内部卡死），随后收起面板并派发 ⌘V
     UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
     NSInteger before = (NSInteger)pasteboard.changeCount;
     ZKOrigUpdatePasteboard(self, _cmd, item, from, NO);
 
     __block NSInteger checks = 0;
-    void (^verify)(void) = ^{
+    __block void (^verify)(void) = nil; // 修复块内递归捕获的编译报错
+    verify = ^{
         if ((NSInteger)pasteboard.changeCount != before) {
             NSLog(@"[CopyVaultSimulateFix] ✅ 剪贴板已更新，正在隐藏面板并派发硬件 ⌘V...");
             ZKHidePanel();
